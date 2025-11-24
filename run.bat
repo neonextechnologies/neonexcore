@@ -1,0 +1,3 @@
+@echo off
+echo Starting Neonex Core...
+neonex.exe
