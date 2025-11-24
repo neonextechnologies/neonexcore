@@ -25,6 +25,12 @@ neonexcore
 
 # Logs
 *.log
+logs/
+build-errors.log
+
+# Hot reload
+tmp/
+.air.toml.bak
 
 # OS
 .DS_Store

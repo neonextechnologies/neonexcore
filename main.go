@@ -9,6 +9,7 @@ import (
 	"neonexcore/internal/core"
 	"neonexcore/modules/user"
 	"neonexcore/pkg/database"
+	"neonexcore/pkg/logger"
 )
 
 func main() {
@@ -18,6 +19,12 @@ func main() {
 	core.ModuleMap["user"] = func() core.Module { return user.New() }
 
 	app := core.NewApp()
+
+	// Initialize Logger
+	loggerConfig := logger.LoadConfig()
+	if err := app.InitLogger(loggerConfig); err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
 
 	// Initialize Database
 	if err := app.InitDatabase(); err != nil {
