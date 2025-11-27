@@ -8,7 +8,7 @@
 
 **A Modern, Modular Go Framework with Built-in ORM**
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Architecture](#-architecture)
+[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [CLI Tools](#%EF%B8%8F-cli-tools)
 
 </div>
 
@@ -24,30 +24,71 @@
 - **🌱 Database Seeding** - Initial data management system
 - **🔌 Multi-Database Support** - SQLite, MySQL, PostgreSQL, Turso
 - **🏗️ Transaction Manager** - ACID-compliant transaction handling
-- **📦 Zero Configuration** - Works with SQLite out of the box
+- **📝 Structured Logging** - Production-ready logging with file rotation
+- **🔥 Hot Reload** - Fast development cycle with Air integration
+- **🛠️ CLI Tools** - Powerful scaffolding and development commands
 
 ## 📦 Quick Start
-
-### Prerequisites
-- Go 1.21 or higher
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/neonexcore.git
-cd neonexcore
+# Install Neonex CLI
+go install github.com/neonextechnologies/neonexcore/cmd/neonex@latest
 
-# Download dependencies
+# Create a new project
+neonex new my-app
+cd my-app
+
+# Install dependencies
 go mod download
 
-# Run the application
-go run main.go
+# Run with hot reload
+neonex serve --hot
 ```
 
-The server will start at `http://localhost:8080`
+### Create Your First Module
+
+```bash
+# Generate a complete CRUD module
+neonex module create product
+
+# Outputs:
+# ✓ model.go - GORM model
+# ✓ repository.go - Data access
+# ✓ service.go - Business logic
+# ✓ controller.go - HTTP handlers
+# ✓ routes.go - API endpoints
+# ✓ di.go - Dependency injection
+```
 
 ### Test the API
+
+```bash
+# Get all items
+curl http://localhost:8080/product/
+
+# Create new item
+curl -X POST http://localhost:8080/product/ \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Laptop","description":"Gaming laptop"}'
+```
+
+## 📖 Documentation
+
+**Full documentation is available at:** [https://docs.neonexcore.com](docs/README.md)
+
+### Quick Links
+
+- [Installation Guide](docs/getting-started/installation.md)
+- [Quick Start Tutorial](docs/getting-started/quick-start.md)
+- [CLI Tools](docs/cli-tools/overview.md)
+- [Module System](docs/core-concepts/module-system.md)
+- [Database](docs/database/overview.md)
+- [Logging](docs/logging/overview.md)
+- [Hot Reload](docs/development/hot-reload.md)
+
+## 🏗️ Architecture
 
 ```bash
 # Get all users
