@@ -2,8 +2,10 @@ package core
 
 import (
 	"fmt"
+	"time"
 
 	"neonexcore/internal/config"
+	"neonexcore/pkg/api"
 	"neonexcore/pkg/database"
 	"neonexcore/pkg/logger"
 
@@ -107,22 +109,58 @@ func (a *App) StartHTTP() {
 		DisableStartupMessage: true, // Disable default Fiber banner
 	})
 
-	// Add logger middleware
+	// Global middleware - CORS
+	app.Use(api.CORSMiddleware())
+
+	// Global middleware - Security headers
+	app.Use(api.SecurityHeadersMiddleware())
+
+	// Global middleware - Request ID
+	app.Use(api.RequestIDMiddleware())
+
+	// Global middleware - Logger
 	app.Use(logger.RequestIDMiddleware(a.Logger))
 	app.Use(logger.HTTPMiddleware(a.Logger))
 
-	// โหลด routes จากทุก module
+	// Global rate limiting (100 requests per minute per IP)
+	app.Use(api.IPRateLimitMiddleware(100, time.Minute))
+
+	// Health check routes
+	healthChecker := api.NewHealthChecker("0.1-alpha", config.DB.GetDB())
+	api.SetupHealthRoutes(app, healthChecker, config.DB.GetDB())
+
+	// API versioning
+	versionManager := api.NewVersionManager()
+	versionManager.RegisterVersion("v1", "1.0.0")
+
+	// Setup Swagger documentation
+	swagger := api.CreateDefaultSwagger()
+	swagger.Info.Title = "Neonex Core API"
+	swagger.Info.Description = "Neonex Core - Modular Backend Framework with Authentication, RBAC, and Module System"
+	swagger.Info.Version = "0.1-alpha"
+	api.SetupSwaggerRoutes(app, swagger)
+
+	// Create versioned API routes
+	apiV1 := api.VersionedRouter(app, "v1")
+	apiV1.Use(api.VersionMiddleware(versionManager))
+
+	// Load module routes
 	a.Logger.Info("Registering modules...")
 	a.Registry.RegisterModuleServices(a.Container)
-	a.Registry.LoadRoutes(app, a.Container)
+	a.Registry.LoadRoutes(apiV1, a.Container) // Load routes into /api/v1
 
-	// default homepage
+	// Default homepage
 	app.Get("/", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
+		return api.Success(c, fiber.Map{
 			"framework": "Neonex Core",
 			"version":   "0.1-alpha",
 			"status":    "running",
 			"engine":    "Fiber (fasthttp)",
+			"endpoints": fiber.Map{
+				"health":        "/health",
+				"documentation": "/api/docs",
+				"api":           "/api/v1",
+			},
 		})
 	})
 
@@ -134,6 +172,10 @@ func (a *App) StartHTTP() {
 	fmt.Println("│       (bound on host 0.0.0.0 and port 8080)       │")
 	fmt.Println("│                                                   │")
 	fmt.Println("│ Framework .... Neonex  Engine ..... Fiber/fasthttp│")
+	fmt.Println("│                                                   │")
+	fmt.Println("│ 📚 Documentation: http://127.0.0.1:8080/api/docs  │")
+	fmt.Println("│ 💚 Health Check:  http://127.0.0.1:8080/health    │")
+	fmt.Println("│ 🚀 API v1:        http://127.0.0.1:8080/api/v1    │")
 	fmt.Println("└───────────────────────────────────────────────────┘")
 	fmt.Println()
 

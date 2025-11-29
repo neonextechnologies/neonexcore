@@ -2,40 +2,116 @@ package user
 
 import (
 	"neonexcore/internal/core"
+	"neonexcore/pkg/auth"
+	"neonexcore/pkg/rbac"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func (m *UserModule) Routes(app *fiber.App, c *core.Container) {
-	group := app.Group("/user")
+	// Resolve controllers from DI container
+	authCtrl := core.Resolve[*AuthController](c)
+	userCtrl := core.Resolve[*UserController](c)
+	
+	// Resolve middleware dependencies
+	jwtManager := core.Resolve[*auth.JWTManager](c)
+	rbacManager := core.Resolve[*rbac.Manager](c)
 
-	group.Get("/", func(ctx *fiber.Ctx) error {
-		controller := core.Resolve[*UserController](c)
-		return controller.GetUsers(ctx)
-	})
+	// API v1 group
+	api := app.Group("/api/v1")
 
-	group.Get("/search", func(ctx *fiber.Ctx) error {
-		controller := core.Resolve[*UserController](c)
-		return controller.SearchUsers(ctx)
-	})
+	// ==================== Authentication Routes (Public) ====================
+	authGroup := api.Group("/auth")
+	{
+		// Public auth endpoints
+		authGroup.Post("/login", authCtrl.Login)
+		authGroup.Post("/register", authCtrl.Register)
+		authGroup.Post("/refresh", authCtrl.RefreshToken)
+		authGroup.Post("/forgot-password", authCtrl.ForgotPassword)
+		authGroup.Post("/reset-password", authCtrl.ResetPassword)
+		authGroup.Get("/verify-email/:token", authCtrl.VerifyEmail)
 
-	group.Get("/:id", func(ctx *fiber.Ctx) error {
-		controller := core.Resolve[*UserController](c)
-		return controller.GetUserByID(ctx)
-	})
+		// Protected auth endpoints (require authentication)
+		authProtected := authGroup.Group("", auth.AuthMiddleware(jwtManager))
+		authProtected.Post("/logout", authCtrl.Logout)
+		authProtected.Get("/profile", authCtrl.GetProfile)
+		authProtected.Put("/profile", authCtrl.UpdateProfile)
+		authProtected.Post("/change-password", authCtrl.ChangePassword)
+		authProtected.Post("/api-key", authCtrl.GenerateAPIKey)
+	}
 
-	group.Post("/", func(ctx *fiber.Ctx) error {
-		controller := core.Resolve[*UserController](c)
-		return controller.CreateUser(ctx)
-	})
+	// ==================== User Management Routes ====================
+	usersGroup := api.Group("/users")
+	{
+		// Public/Optional auth endpoints
+		usersGroup.Get("/search", userCtrl.Search)
 
-	group.Put("/:id", func(ctx *fiber.Ctx) error {
-		controller := core.Resolve[*UserController](c)
-		return controller.UpdateUser(ctx)
-	})
+		// Protected endpoints (require authentication)
+		usersProtected := usersGroup.Group("", auth.AuthMiddleware(jwtManager))
+		{
+			// Read operations (require 'users.read' permission)
+			usersProtected.Get("/", 
+				rbac.RequirePermission(rbacManager, "users.read"),
+				userCtrl.GetAll,
+			)
+			usersProtected.Get("/:id", 
+				rbac.RequirePermission(rbacManager, "users.read"),
+				userCtrl.GetByID,
+			)
 
-	group.Delete("/:id", func(ctx *fiber.Ctx) error {
-		controller := core.Resolve[*UserController](c)
-		return controller.DeleteUser(ctx)
-	})
+			// Write operations (require 'users.create' permission)
+			usersProtected.Post("/", 
+				rbac.RequirePermission(rbacManager, "users.create"),
+				userCtrl.Create,
+			)
+
+			// Update operations (require 'users.update' permission)
+			usersProtected.Put("/:id", 
+				rbac.RequirePermission(rbacManager, "users.update"),
+				userCtrl.Update,
+			)
+
+			// Delete operations (require 'users.delete' permission)
+			usersProtected.Delete("/:id", 
+				rbac.RequirePermission(rbacManager, "users.delete"),
+				userCtrl.Delete,
+			)
+
+			// Role management (require 'users.manage-roles' permission)
+			usersProtected.Get("/:id/roles",
+				rbac.RequirePermission(rbacManager, "users.manage-roles"),
+				userCtrl.GetUserRoles,
+			)
+			usersProtected.Post("/:id/roles",
+				rbac.RequirePermission(rbacManager, "users.manage-roles"),
+				userCtrl.AssignRole,
+			)
+			usersProtected.Delete("/:id/roles/:roleId",
+				rbac.RequirePermission(rbacManager, "users.manage-roles"),
+				userCtrl.RemoveRole,
+			)
+
+			// Permission management (require 'users.manage-permissions' permission)
+			usersProtected.Get("/:id/permissions",
+				rbac.RequirePermission(rbacManager, "users.manage-permissions"),
+				userCtrl.GetUserPermissions,
+			)
+		}
+	}
+
+	// ==================== Legacy Routes (backward compatibility) ====================
+	// Keep old /user routes for backward compatibility
+	legacyGroup := app.Group("/user")
+	{
+		legacyGroup.Get("/search", userCtrl.Search)
+		
+		legacyProtected := legacyGroup.Group("", auth.AuthMiddleware(jwtManager))
+		{
+			legacyProtected.Get("/", userCtrl.GetAll)
+			legacyProtected.Get("/:id", userCtrl.GetByID)
+			legacyProtected.Post("/", userCtrl.Create)
+			legacyProtected.Put("/:id", userCtrl.Update)
+			legacyProtected.Delete("/:id", userCtrl.Delete)
+		}
+	}
 }

@@ -38,7 +38,7 @@ func (r *ModuleRegistry) Load() {
 	}
 }
 
-func (r *ModuleRegistry) LoadRoutes(app *fiber.App, c *Container) {
+func (r *ModuleRegistry) LoadRoutes(app fiber.Router, c *Container) {
 	for _, m := range r.Modules {
 		m.Routes(app, c)
 	}

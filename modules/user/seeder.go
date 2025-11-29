@@ -4,61 +4,79 @@ import (
 	"context"
 	"fmt"
 
+	"neonexcore/pkg/auth"
+
 	"gorm.io/gorm"
 )
 
 // UserSeeder seeds initial user data
-type UserSeeder struct{}
+type UserSeeder struct {
+	db *gorm.DB
+}
 
-// Seed implements the Seeder interface
-func (s *UserSeeder) Seed(ctx context.Context, db *gorm.DB) error {
+func NewUserSeeder(db *gorm.DB) *UserSeeder {
+	return &UserSeeder{db: db}
+}
+
+func (s *UserSeeder) Name() string {
+	return "UserSeeder"
+}
+
+// Run implements the Seeder interface
+func (s *UserSeeder) Run(ctx context.Context) error {
 	// Check if users already exist
 	var count int64
-	if err := db.Model(&User{}).Count(&count).Error; err != nil {
+	if err := s.db.Model(&User{}).Count(&count).Error; err != nil {
 		return err
 	}
 
 	if count > 0 {
-		fmt.Println("⏭️  Users already seeded, skipping...")
+		fmt.Println("  ⏭️  Users already seeded, skipping...")
 		return nil
 	}
 
+	hasher := auth.NewPasswordHasher()
+
+	// Hash passwords
+	adminPass, _ := hasher.Hash("admin123")
+	userPass, _ := hasher.Hash("user123")
+
 	users := []User{
+		{
+			Name:     "Admin User",
+			Email:    "admin@neonex.local",
+			Username: "admin",
+			Password: adminPass,
+			IsActive: true,
+		},
+		{
+			Name:     "Test User",
+			Email:    "user@neonex.local",
+			Username: "testuser",
+			Password: userPass,
+			IsActive: true,
+		},
 		{
 			Name:     "Alice Johnson",
 			Email:    "alice@example.com",
-			Password: "hashed_password_here",
-			Age:      28,
-			Active:   true,
+			Username: "alice",
+			Password: userPass,
+			IsActive: true,
 		},
 		{
 			Name:     "Bob Smith",
 			Email:    "bob@example.com",
-			Password: "hashed_password_here",
-			Age:      35,
-			Active:   true,
-		},
-		{
-			Name:     "Charlie Brown",
-			Email:    "charlie@example.com",
-			Password: "hashed_password_here",
-			Age:      42,
-			Active:   true,
-		},
-		{
-			Name:     "Diana Prince",
-			Email:    "diana@example.com",
-			Password: "hashed_password_here",
-			Age:      30,
-			Active:   false,
+			Username: "bob",
+			Password: userPass,
+			IsActive: true,
 		},
 	}
 
-	result := db.Create(&users)
+	result := s.db.Create(&users)
 	if result.Error != nil {
 		return result.Error
 	}
 
-	fmt.Printf("✅ Seeded %d users\n", len(users))
+	fmt.Printf("  ✓ Seeded %d users\n", len(users))
 	return nil
 }

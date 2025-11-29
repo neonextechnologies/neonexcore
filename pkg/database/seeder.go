@@ -9,7 +9,8 @@ import (
 
 // Seeder interface for database seeding
 type Seeder interface {
-	Seed(ctx context.Context, db *gorm.DB) error
+	Name() string
+	Run(ctx context.Context) error
 }
 
 // SeederManager manages database seeders
@@ -41,8 +42,9 @@ func (sm *SeederManager) Run(ctx context.Context) error {
 	fmt.Printf("🌱 Running %d seeders...\n", len(sm.seeders))
 
 	for _, seeder := range sm.seeders {
-		if err := seeder.Seed(ctx, sm.db); err != nil {
-			return fmt.Errorf("seeder failed: %w", err)
+		fmt.Printf("Running %s...\n", seeder.Name())
+		if err := seeder.Run(ctx); err != nil {
+			return fmt.Errorf("seeder %s failed: %w", seeder.Name(), err)
 		}
 	}
 
