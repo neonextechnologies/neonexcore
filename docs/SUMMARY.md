@@ -27,22 +27,24 @@
 * [Dependency Injection](core-concepts/dependency-injection.md)
 * [Repository Pattern](core-concepts/repository-pattern.md)
 * [Service Layer](core-concepts/service-layer.md)
+* [Lifecycle Management](core-concepts/lifecycle.md)
 
 ## Database
 
 * [Overview](database/overview.md)
 * [Configuration](database/configuration.md)
 * [Migrations](database/migrations.md)
-* [Seeders](database/seeders.md)
+* [Repositories](database/repositories.md)
 * [Transactions](database/transactions.md)
+* [Seeders](database/seeders.md)
 
 ## Logging
 
 * [Overview](logging/overview.md)
 * [Configuration](logging/configuration.md)
 * [Usage](logging/usage.md)
-* [Formatters](logging/formatters.md)
-* [File Rotation](logging/file-rotation.md)
+* [Middleware](logging/middleware.md)
+* [Best Practices](logging/best-practices.md)
 
 ## Development
 
@@ -57,19 +59,22 @@
 * [Middleware](advanced/middleware.md)
 * [Error Handling](advanced/error-handling.md)
 * [Performance](advanced/performance.md)
+* [Security](advanced/security.md)
 
 ## API Reference
 
-* [Core API](api-reference/core-api.md)
+* [Core API](api-reference/core.md)
 * [Module Interface](api-reference/module-interface.md)
-* [Container API](api-reference/container-api.md)
-* [Logger API](api-reference/logger-api.md)
+* [Container API](api-reference/container.md)
+* [Repository API](api-reference/repository.md)
+* [Logger API](api-reference/logger.md)
 
 ## Deployment
 
 * [Production Setup](deployment/production-setup.md)
 * [Docker](deployment/docker.md)
 * [Environment Variables](deployment/environment-variables.md)
+* [Monitoring](deployment/monitoring.md)
 
 ## Contributing
 
