@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeonexCore WebSocket Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        .status.connected {
+            background: #10b981;
+        }
+        .status.disconnected {
+            background: #ef4444;
+        }
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+        .panel {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .panel-header {
+            background: #f9fafb;
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            color: #374151;
+        }
+        .panel-body {
+            padding: 15px;
+        }
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 5px;
+            padding: 10px;
+            background: #f9fafb;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+        .message {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            word-wrap: break-word;
+        }
+        .message.sent {
+            background: #dbeafe;
+            border-left: 3px solid #3b82f6;
+        }
+        .message.received {
+            background: #d1fae5;
+            border-left: 3px solid #10b981;
+        }
+        .message.system {
+            background: #fef3c7;
+            border-left: 3px solid #f59e0b;
+        }
+        .message.error {
+            background: #fee2e2;
+            border-left: 3px solid #ef4444;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #374151;
+            font-weight: 500;
+        }
+        .input-group input, .input-group select, .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        .input-group textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        button.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        button.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button.secondary {
+            background: #6b7280;
+            color: white;
+        }
+        button.secondary:hover {
+            background: #4b5563;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .stat-box {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            font-size: 0.85em;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔴 NeonexCore WebSocket Demo</h1>
+            <div class="status disconnected" id="status">Disconnected</div>
+            <div style="margin-top: 10px; font-size: 0.9em;">
+                Connection ID: <span id="connectionId">-</span> | User ID: <span id="userId">-</span>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Messages Panel -->
+            <div class="panel">
+                <div class="panel-header">📨 Messages</div>
+                <div class="panel-body">
+                    <div class="messages" id="messages"></div>
+                    <button class="secondary" onclick="clearMessages()">Clear Messages</button>
+                </div>
+            </div>
+
+            <!-- Controls Panel -->
+            <div class="panel">
+                <div class="panel-header">🎮 Controls</div>
+                <div class="panel-body">
+                    <button class="primary" id="connectBtn" onclick="connect()">Connect</button>
+                    <button class="secondary" id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+
+                    <div class="input-group" style="margin-top: 20px;">
+                        <label>Message Type:</label>
+                        <select id="messageType">
+                            <option value="message">Message</option>
+                            <option value="broadcast">Broadcast</option>
+                            <option value="ping">Ping</option>
+                            <option value="join_room">Join Room</option>
+                            <option value="leave_room">Leave Room</option>
+                            <option value="room_message">Room Message</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Room Name (for room messages):</label>
+                        <input type="text" id="roomName" placeholder="Enter room name" value="lobby">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Message Payload:</label>
+                        <textarea id="messagePayload" placeholder='{"text": "Hello World"}'></textarea>
+                    </div>
+
+                    <button class="primary" onclick="sendMessage()" id="sendBtn" disabled>Send Message</button>
+                </div>
+            </div>
+
+            <!-- Server Stats Panel -->
+            <div class="panel" style="grid-column: span 2;">
+                <div class="panel-header">📊 Server Statistics</div>
+                <div class="panel-body">
+                    <div class="stats">
+                        <div class="stat-box">
+                            <div class="stat-value" id="statConnections">-</div>
+                            <div class="stat-label">Active Connections</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="statUsers">-</div>
+                            <div class="stat-label">Online Users</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="statRooms">-</div>
+                            <div class="stat-label">Active Rooms</div>
+                        </div>
+                    </div>
+                    <button class="primary" onclick="fetchStats()">Refresh Stats</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let connectionId = null;
+        let userId = null;
+
+        function addMessage(text, type = 'received') {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${text}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const statusEl = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const sendBtn = document.getElementById('sendBtn');
+
+            if (connected) {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                sendBtn.disabled = false;
+            } else {
+                statusEl.textContent = 'Disconnected';
+                statusEl.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                sendBtn.disabled = true;
+                document.getElementById('connectionId').textContent = '-';
+                document.getElementById('userId').textContent = '-';
+            }
+        }
+
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.hostname}:8080/ws`;
+            
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                addMessage('✅ Connected to WebSocket server', 'system');
+                updateStatus(true);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    // Handle system messages
+                    if (data.type === 'system' && data.payload.event === 'connected') {
+                        connectionId = data.payload.data.connection_id;
+                        userId = data.payload.data.user_id;
+                        document.getElementById('connectionId').textContent = connectionId.substring(0, 8);
+                        document.getElementById('userId').textContent = userId;
+                    }
+
+                    addMessage(`📥 <strong>${data.type}</strong>: ${JSON.stringify(data.payload, null, 2)}`, 'received');
+                } catch (e) {
+                    addMessage(`📥 ${event.data}`, 'received');
+                }
+            };
+
+            ws.onerror = (error) => {
+                addMessage(`❌ WebSocket error: ${error}`, 'error');
+            };
+
+            ws.onclose = () => {
+                addMessage('🔌 Disconnected from server', 'system');
+                updateStatus(false);
+                ws = null;
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+        }
+
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('❌ Not connected to server', 'error');
+                return;
+            }
+
+            const messageType = document.getElementById('messageType').value;
+            const roomName = document.getElementById('roomName').value;
+            const payloadText = document.getElementById('messagePayload').value;
+
+            let payload;
+            try {
+                payload = payloadText ? JSON.parse(payloadText) : {};
+            } catch (e) {
+                payload = { text: payloadText };
+            }
+
+            const message = {
+                type: messageType,
+                payload: payload,
+                room: roomName,
+                timestamp: new Date().toISOString()
+            };
+
+            ws.send(JSON.stringify(message));
+            addMessage(`📤 <strong>${messageType}</strong>: ${JSON.stringify(payload)}`, 'sent');
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+        }
+
+        async function fetchStats() {
+            try {
+                const response = await fetch('http://localhost:8080/ws/stats');
+                const data = await response.json();
+                
+                document.getElementById('statConnections').textContent = data.connections || 0;
+                document.getElementById('statUsers').textContent = data.users || 0;
+                document.getElementById('statRooms').textContent = data.rooms || 0;
+                
+                addMessage(`📊 Stats refreshed: ${data.connections} connections, ${data.users} users, ${data.rooms} rooms`, 'system');
+            } catch (e) {
+                addMessage(`❌ Failed to fetch stats: ${e.message}`, 'error');
+            }
+        }
+
+        // Auto-fetch stats every 5 seconds
+        setInterval(fetchStats, 5000);
+
+        // Initial stats fetch
+        fetchStats();
+
+        // Add welcome message
+        addMessage('👋 Welcome to NeonexCore WebSocket Demo! Click "Connect" to start.', 'system');
+    </script>
+</body>
+</html>

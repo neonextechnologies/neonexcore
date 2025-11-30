@@ -8,6 +8,7 @@ import (
 	"neonexcore/pkg/api"
 	"neonexcore/pkg/database"
 	"neonexcore/pkg/logger"
+	"neonexcore/pkg/websocket"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -20,16 +21,22 @@ type App struct {
 	Container *Container
 	Migrator  *database.Migrator
 	Logger    logger.Logger
+	WSHub     *websocket.Hub // WebSocket hub
 }
 
 // -----------------------------------------------------------
 // 2) NewApp() - สร้าง App + โหลด ModuleRegistry
 // -----------------------------------------------------------
 func NewApp() *App {
+	// Initialize WebSocket hub
+	hubConfig := websocket.DefaultHubConfig()
+	wsHub := websocket.NewHub(hubConfig)
+	
 	return &App{
 		Registry:  NewModuleRegistry(),
 		Container: NewContainer(),
 		Logger:    logger.NewLogger(),
+		WSHub:     wsHub,
 	}
 }
 
@@ -149,6 +156,10 @@ func (a *App) StartHTTP() {
 	a.Registry.RegisterModuleServices(a.Container)
 	a.Registry.LoadRoutes(apiV1, a.Container) // Load routes into /api/v1
 
+	// Setup WebSocket routes
+	a.Logger.Info("Setting up WebSocket support...")
+	websocket.SetupRoutes(app, a.WSHub, nil) // nil = use default message handler
+
 	// Default homepage
 	app.Get("/", func(c *fiber.Ctx) error {
 		return api.Success(c, fiber.Map{
@@ -176,6 +187,7 @@ func (a *App) StartHTTP() {
 	fmt.Println("│ 📚 Documentation: http://127.0.0.1:8080/api/docs  │")
 	fmt.Println("│ 💚 Health Check:  http://127.0.0.1:8080/health    │")
 	fmt.Println("│ 🚀 API v1:        http://127.0.0.1:8080/api/v1    │")
+	fmt.Println("│ 🔴 WebSocket:     ws://127.0.0.1:8080/ws          │")
 	fmt.Println("└───────────────────────────────────────────────────┘")
 	fmt.Println()
 
