@@ -8,6 +8,7 @@ import (
 	"neonexcore/pkg/api"
 	"neonexcore/pkg/database"
 	"neonexcore/pkg/logger"
+	"neonexcore/pkg/metrics"
 	"neonexcore/pkg/websocket"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,11 +18,13 @@ import (
 // 1) App Struct
 // -----------------------------------------------------------
 type App struct {
-	Registry  *ModuleRegistry
-	Container *Container
-	Migrator  *database.Migrator
-	Logger    logger.Logger
-	WSHub     *websocket.Hub // WebSocket hub
+	Registry   *ModuleRegistry
+	Container  *Container
+	Migrator   *database.Migrator
+	Logger     logger.Logger
+	WSHub      *websocket.Hub // WebSocket hub
+	Collector  *metrics.Collector
+	Dashboard  *metrics.Dashboard
 }
 
 // -----------------------------------------------------------
@@ -32,11 +35,24 @@ func NewApp() *App {
 	hubConfig := websocket.DefaultHubConfig()
 	wsHub := websocket.NewHub(hubConfig)
 	
+	// Initialize metrics collector
+	collectorConfig := metrics.DefaultCollectorConfig()
+	collectorConfig.CollectSystemMetrics = true
+	collectorConfig.SystemMetricsInterval = 5 * time.Second
+	collector := metrics.NewCollector(collectorConfig)
+	
+	// Initialize dashboard
+	dashConfig := metrics.DefaultDashboardConfig()
+	dashConfig.BroadcastInterval = 1 * time.Second
+	dashboard := metrics.NewDashboard(collector, wsHub, dashConfig)
+	
 	return &App{
 		Registry:  NewModuleRegistry(),
 		Container: NewContainer(),
 		Logger:    logger.NewLogger(),
 		WSHub:     wsHub,
+		Collector: collector,
+		Dashboard: dashboard,
 	}
 }
 
@@ -129,6 +145,11 @@ func (a *App) StartHTTP() {
 	app.Use(logger.RequestIDMiddleware(a.Logger))
 	app.Use(logger.HTTPMiddleware(a.Logger))
 
+	// Global middleware - Metrics
+	app.Use(metrics.Middleware(a.Collector))
+	app.Use(metrics.MethodMiddleware(a.Collector))
+	app.Use(metrics.ErrorMiddleware(a.Collector))
+
 	// Global rate limiting (100 requests per minute per IP)
 	app.Use(api.IPRateLimitMiddleware(100, time.Minute))
 
@@ -160,6 +181,10 @@ func (a *App) StartHTTP() {
 	a.Logger.Info("Setting up WebSocket support...")
 	websocket.SetupRoutes(app, a.WSHub, nil) // nil = use default message handler
 
+	// Setup metrics dashboard
+	a.Logger.Info("Setting up metrics dashboard...")
+	a.Dashboard.SetupRoutes(app)
+
 	// Default homepage
 	app.Get("/", func(c *fiber.Ctx) error {
 		return api.Success(c, fiber.Map{
@@ -188,6 +213,7 @@ func (a *App) StartHTTP() {
 	fmt.Println("│ 💚 Health Check:  http://127.0.0.1:8080/health    │")
 	fmt.Println("│ 🚀 API v1:        http://127.0.0.1:8080/api/v1    │")
 	fmt.Println("│ 🔴 WebSocket:     ws://127.0.0.1:8080/ws          │")
+	fmt.Println("│ 📊 Metrics:       http://127.0.0.1:8080/metrics/dashboard │")
 	fmt.Println("└───────────────────────────────────────────────────┘")
 	fmt.Println()
 
