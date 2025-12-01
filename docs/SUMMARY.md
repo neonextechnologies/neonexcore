@@ -6,6 +6,7 @@
 * [What is Neonex Core?](introduction/what-is-neonex-core.md)
 * [Key Features](introduction/key-features.md)
 * [Architecture](introduction/architecture.md)
+* [Framework Comparison](introduction/comparison.md)
 
 ## Getting Started
 
