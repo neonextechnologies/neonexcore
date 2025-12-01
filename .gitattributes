@@ -4,7 +4,6 @@
 # Exclude documentation from git archive (releases/downloads)
 # This keeps docs in repo for GitBook but excludes from user downloads
 docs/ export-ignore
-CHAT_SUMMARY.md export-ignore
 .gitbook.yaml export-ignore
 
 # Exclude development files
